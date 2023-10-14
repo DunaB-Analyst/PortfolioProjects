@@ -1,6 +1,6 @@
 
 /*
-Cleaning Data in SQL Queries
+CLEANING DATA USING SQL QUERIES
 */
 
 Select *
