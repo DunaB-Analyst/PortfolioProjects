@@ -3,186 +3,160 @@
 CLEANING DATA USING SQL QUERIES
 */
 
+--USING THE NASHVILLE HOUSING DATASET FROM KAGGLE
+
 Select *
-From PortfolioProject.dbo.NashvilleHousing
+From PortfolioProject.dbo.Nashville
 
 
--- Standardize Date Format
+-- STANDARDIZE DATE FORMAT
 
-Select saleDateConverted, CONVERT(Date,SaleDate)
-From PortfolioProject.dbo.NashvilleHousing
+SELECT saleDate, CONVERT(Date,SaleDate)
+FROM PortfolioProject.dbo.Nashville
 
 
-Update NashvilleHousing
+UPDATE Nashville
 SET SaleDate = CONVERT(Date,SaleDate)
 
+--OR USE THIS 
 
--- If it doesn't Update properly
-
-ALTER TABLE NashvilleHousing
-Add SaleDateConverted Date;
+ALTER TABLE Nashville
+Add SaleDateConverted Date
 
 
-Update NashvilleHousing
+UPDATE Nashville
 SET SaleDateConverted = CONVERT(Date,SaleDate)
 
 
--- Populate Property Address data
+-- POPULATE PROPERTY-ADDRESS COLUMN
+-----this is used to join a table to itself using two conditions (ParcelID is the same but UniqueID is not)
+--Also the third column of the first table is empty
+------Another column is created where the blank spaces of the column of the first table are replaced with the attributes of the same column of the second table
 
-Select *
-From PortfolioProject.dbo.NashvilleHousing
---Where PropertyAddress is null
-order by ParcelID
+SELECT a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress,b.PropertyAddress)
+FROM PortfolioProject.dbo.Nashville as a
+JOIN PortfolioProject.dbo.Nashville as b
+ON a.ParcelID = b.ParcelID
+AND a.UniqueID <> b.UniqueID
+WHERE a.PropertyAddress IS NULL
 
 
 Select a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress,b.PropertyAddress)
-From PortfolioProject.dbo.NashvilleHousing a
-JOIN PortfolioProject.dbo.NashvilleHousing b
+From PortfolioProject.dbo.Nashville a
+JOIN PortfolioProject.dbo.Nashville b
 	on a.ParcelID = b.ParcelID
 	AND a.[UniqueID ] <> b.[UniqueID ]
 Where a.PropertyAddress is null
 
 
-Update a
-SET PropertyAddress = ISNULL(a.PropertyAddress,b.PropertyAddress)
-From PortfolioProject.dbo.NashvilleHousing a
-JOIN PortfolioProject.dbo.NashvilleHousing b
-	on a.ParcelID = b.ParcelID
-	AND a.[UniqueID ] <> b.[UniqueID ]
-Where a.PropertyAddress is null
+---Update the table with the newly created column
+--Note that this is repeated for simplicity purposes
+UPDATE a
+SET a.PropertyAddress = ISNULL(a.PropertyAddress,b.PropertyAddress)
+FROM PortfolioProject.dbo.Nashville as a
+JOIN PortfolioProject.dbo.Nashville as b
+ON a.ParcelID = b.ParcelID
+AND a.UniqueID <> b.UniqueID
+WHERE a.PropertyAddress IS NULL
 
 
--- Breaking out Address into Individual Columns (Address, City, State)
+---USING SUBSTRING, BREAK OUT PROPERTY-ADDRESS INTO INDIVIDUAL COLUMNS (ADDRESS, CITY)
 
-Select PropertyAddress
-From PortfolioProject.dbo.NashvilleHousing
---Where PropertyAddress is null
---order by ParcelID
+---This represents the actions of splitting
+SELECT 
+SUBSTRING (PropertyAddress,1, CHARINDEX(',', PropertyAddress) -1) AS Address
+, SUBSTRING (PropertyAddress, CHARINDEX(',', PropertyAddress) +1 , LEN(PropertyAddress)  AS City
+FROM PortfolioProject.dbo.Nashville
+
+---Table is updated to include a new column for address only
+ALTER TABLE PortfolioProject.dbo.Nashville
+ADD OnlyAddress nvarchar(255)
+
+UPDATE PortfolioProject.dbo.Nashville
+SET OnlyAddress = SUBSTRING (PropertyAddress,1, CHARINDEX(',', PropertyAddress) -1) AS Address
+
+---Table is updated to include a new column for city only
+ALTER TABLE PortfolioProject.dbo.Nashville
+ADD OnlyCity nvarchar(255)
+
+UPDATE PortfolioProject.dbo.Nashville
+SET OnlyCity = SUBSTRING (PropertyAddress, CHARINDEX(',', PropertyAddress) +1 , LEN(PropertyAddress)  AS City
+
+
+--OR 
+
+
+---USING PARSENAME, BREAK OUT OWNER-ADDRESS INTO SEPARATE COLUMNS
 
 SELECT
-SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1 ) as Address
-, SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) + 1 , LEN(PropertyAddress)) as Address
-
-From PortfolioProject.dbo.NashvilleHousing
-
-ALTER TABLE NashvilleHousing
-Add PropertySplitAddress Nvarchar(255);
-
-Update NashvilleHousing
-SET PropertySplitAddress = SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1 )
-
-ALTER TABLE NashvilleHousing
-Add PropertySplitCity Nvarchar(255);
+PARSENAME(REPLACE(OwnerAddress,',', '.' 3) AS Address
+PARSENAME(REPLACE(OwnerAddress,',', '.' 2) AS City
+PARSENAME(REPLACE(OwnerAddress,',', '.' 1) AS State
+FROM PortfolioProject.dbo.Nashville
 
 
-Update NashvilleHousing
-SET PropertySplitCity = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) + 1 , LEN(PropertyAddress))
+-----Table is updated to include a new column for address, city and state only
+ALTER TABLE PortfolioProject.dbo.Nashville
+ADD OnlyAddress nvarchar(255)
+
+UPDATE PortfolioProject.dbo.Nashville
+SET OnlyAddress = PARSENAME(REPLACE(OwnerAddress,',', '.' 3)) -1)
 
 
-Select *
-From PortfolioProject.dbo.NashvilleHousing
+ALTER TABLE PortfolioProject.dbo.Nashville
+ADD OnlyCity Nvarchar(255)
+
+UPDATE PortfolioProject.dbo.Nashville
+SET OnlyCity = PARSENAME(REPLACE(OwnerAddress,',', '.' 2)
+
+ALTER TABLE PortfolioProject.dbo.Nashville
+ADD OnlyState Nvarchar(255)
+
+UPDATE PortfolioProject.dbo.Nashville
+SET OnlyAddress = PARSENAME(REPLACE(OwnerAddress,',', '.' 1)
 
 
+---Change Y to YES and N to NO
+SELECT SoldAsVacant
+CASE WHEN SoldAsVacant = 'Y' THEN 'YES'
+	 WHEN SoldAsVacant = 'N' THEN 'NO'
+	 ELSE SoldAsVacant
+	 END AS Response
+FROM PortfolioProject.dbo.Nashville
 
-Select OwnerAddress
-From PortfolioProject.dbo.NashvilleHousing
-
-
-Select
-PARSENAME(REPLACE(OwnerAddress, ',', '.') , 3)
-,PARSENAME(REPLACE(OwnerAddress, ',', '.') , 2)
-,PARSENAME(REPLACE(OwnerAddress, ',', '.') , 1)
-From PortfolioProject.dbo.NashvilleHousing
-
-
-ALTER TABLE NashvilleHousing
-Add OwnerSplitAddress Nvarchar(255);
-
-
-Update NashvilleHousing
-SET OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 3)
-
-ALTER TABLE NashvilleHousing
-Add OwnerSplitCity Nvarchar(255);
+---Update the table
+UPDATE Nashville
+SET SoldAsVacant = CASE WHEN SoldAsVacant = 'Y' THEN 'YES'
+	 WHEN SoldAsVacant = 'N' THEN 'NO'
+	 ELSE SoldAsVacant
+	 END
 
 
-Update NashvilleHousing
-SET OwnerSplitCity = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 2)
+----REMOVE DUPLICATES
 
+---change the SELECT * to DELETE after viewing to remove the duplicates
 
-ALTER TABLE NashvilleHousing
-Add OwnerSplitState Nvarchar(255);
-
-Update NashvilleHousing
-SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 1)
-
-
-Select *
-From PortfolioProject.dbo.NashvilleHousing
-
-
-
-
--- Change Y and N to Yes and No in "Sold as Vacant" field
-
-Select Distinct(SoldAsVacant), Count(SoldAsVacant)
-From PortfolioProject.dbo.NashvilleHousing
-Group by SoldAsVacant
-order by 2
-
-
-
-Select SoldAsVacant
-, CASE When SoldAsVacant = 'Y' THEN 'Yes'
-	   When SoldAsVacant = 'N' THEN 'No'
-	   ELSE SoldAsVacant
-	   END
-From PortfolioProject.dbo.NashvilleHousing
-
-
-Update NashvilleHousing
-SET SoldAsVacant = CASE When SoldAsVacant = 'Y' THEN 'Yes'
-	   When SoldAsVacant = 'N' THEN 'No'
-	   ELSE SoldAsVacant
-	   END
-
-
-	   -- Remove Duplicates
-
-WITH RowNumCTE AS(
-Select *,
-	ROW_NUMBER() OVER (
-	PARTITION BY ParcelID,
-				 PropertyAddress,
-				 SalePrice,
-				 SaleDate,
-				 LegalReference
-				 ORDER BY
-					UniqueID
-					) row_num
-
-
-From PortfolioProject.dbo.NashvilleHousing
---order by ParcelID
+WITH RowNumCTE AS 
+(SELECT *,
+ROW_NUMBER() OVER(PARTITION BY ParcelID,
+				PropertyAddress, 
+				SalePrice,
+				SaleDate,
+				LegalReference
+ORDER BY UniqueID) AS Row_Num
+FROM PortfolioProject.dbo.Nashville
 )
-Select *
-From RowNumCTE
-Where row_num > 1
-Order by PropertyAddress
+SELECT *
+FROM RowNumCTE
+WHERE Row_Num > 1
+ORDER BY PropertyAddress
 
 
-Select *
-From PortfolioProject.dbo.NashvilleHousing
 
+---DELETE UNUSED COLUMNS
+SELECT *
+FROM PortfolioProject.dbo.Nashville
 
--- Delete Unused Columns
-
-Select *
-From PortfolioProject.dbo.NashvilleHousing
-
-
-ALTER TABLE PortfolioProject.dbo.NashvilleHousing
+ALTER TABLE PortfolioProject.dbo.Nashville
 DROP COLUMN OwnerAddress, TaxDistrict, PropertyAddress, SaleDate
-
-
 
